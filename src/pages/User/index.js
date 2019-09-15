@@ -32,6 +32,9 @@ export default class User extends Component {
     stars: [],
     loading: false,
     page: 1,
+    toLoad: true,
+    loadingMore: false,
+    refreshing: false,
   };
 
   componentDidMount() {
@@ -45,26 +48,47 @@ export default class User extends Component {
 
     const user = navigation.getParam('user');
 
+    if (page > 1) this.setState({ loadingMore: true });
+
     const response = await api.get(`/users/${user.login}/starred`, {
       params: { page },
     });
 
+    if (response.data.length === 0)
+      this.setState({ toLoad: false, loadingMore: false });
+
     this.setState({
       stars: page > 1 ? [...stars, ...response.data] : response.data,
       loading: false,
+      loadingMore: false,
       page,
     });
   };
 
   loadMore = () => {
-    const { page } = this.state;
-    const incrementPage = page + 1;
-    this.load(incrementPage);
+    const { page, toLoad } = this.state;
+
+    if (toLoad) {
+      const incrementPage = page + 1;
+      this.load(incrementPage);
+    }
+  };
+
+  refreshList = () => {
+    this.setState({
+      stars: [],
+      loading: false,
+      page: 1,
+      toLoad: true,
+      loadingMore: false,
+      refreshing: false,
+    });
+    this.load();
   };
 
   render() {
     const { navigation } = this.props;
-    const { stars, loading } = this.state;
+    const { stars, loading, loadingMore, refreshing } = this.state;
     const user = navigation.getParam('user');
     return (
       <Container>
@@ -77,6 +101,8 @@ export default class User extends Component {
           <ActivityIndicator color="#666" />
         ) : (
           <Stars
+            onRefresh={this.refreshList}
+            refreshing={refreshing}
             onEndReachedThreshold={0.2}
             onEndReached={this.loadMore}
             data={stars}
@@ -92,6 +118,7 @@ export default class User extends Component {
             )}
           />
         )}
+        {loadingMore && <ActivityIndicator color="#666" />}
       </Container>
     );
   }
